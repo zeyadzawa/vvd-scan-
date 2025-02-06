@@ -1,0 +1,67 @@
+export async function virusScan(url) {
+  const API_KEY =
+    'ea5f1817fd13f0a4bbede57fbd49b5e9c13e7732be5cd40d3758be04783ca1ac';
+  const corsProxy = 'https://thingproxy.freeboard.io/fetch/'; // Or the CORS proxy you're using
+
+  try {
+    const scanUrlEndpoint =
+      corsProxy + 'https://www.virustotal.com/vtapi/v2/url/scan';
+    const reportUrlEndpoint =
+      corsProxy + 'https://www.virustotal.com/vtapi/v2/url/report';
+
+    const scanRequest = await fetch(scanUrlEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        apikey: API_KEY,
+        url,
+      }),
+    });
+
+    // Check the raw response first
+    const rawResponse = await scanRequest.text();
+    console.log('Raw response:', rawResponse);
+
+    // Attempt to parse it as JSON
+    try {
+      const scanData = JSON.parse(rawResponse);
+      const scanId = scanData.scan_id;
+
+      if (scanId) {
+        await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait for 10 seconds
+
+        const reportResponse = await fetch(
+          `${reportUrlEndpoint}?apikey=${API_KEY}&resource=${scanId}`,
+        );
+        const reportData = await reportResponse.json();
+
+        // Check if the URL is safe or not
+        const positives = reportData.positives || 0;
+        const total = reportData.total || 0;
+
+        if (positives === 0) {
+          return {
+            ...reportData,
+            safetyStatus: 'Safe', // URL is safe
+            message: 'The URL is safe. No threats detected.',
+          };
+        } else {
+          return {
+            ...reportData,
+            safetyStatus: 'Unsafe', // URL is potentially dangerous
+            message: `Warning: ${positives} out of ${total} scans detected threats.`,
+          };
+        }
+      } else {
+        return 'Failed to get scan ID';
+      }
+    } catch (error) {
+      return 'Error: Invalid JSON response';
+    }
+  } catch (error) {
+    console.error('Error scanning URL:', error);
+    return 'An error occurred while scanning the URL.';
+  }
+}

@@ -1,0 +1,93 @@
+import { useState } from 'react';
+import Heading from '../../ui/Heading';
+
+const highlightPorts = (nmapResult) => {
+  const lines = nmapResult.split('\n');
+  return lines.map((line, index) => (
+    <p
+      key={index}
+      className={
+        line.includes('open') ? 'font-semibold text-green-600' : 'text-gray-800'
+      }
+    >
+      {line}
+    </p>
+  ));
+};
+
+function SiteInfo() {
+  const [target, setTarget] = useState('');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [nmapResult, setNmapResult] = useState([]);
+
+  const handleScan = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setResult(null);
+
+    try {
+      const response = await fetch(
+        `http://localhost:5000/scan?target=${target}`,
+      );
+      const data = await response.json();
+
+      if (data.error) {
+        setResult(`Error: ${data.error}`);
+      } else {
+        setResult(() => data.result);
+        setNmapResult(result.split('--- Whois Result ---')[0].trim());
+      }
+    } catch (error) {
+      setResult(`Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex-1 bg-gray-50 p-5 pt-9">
+      <Heading>Site Information Scan</Heading>
+
+      <form onSubmit={handleScan} className="mb-5">
+        <label htmlFor="target" className="mb-2 block font-medium">
+          Enter target IP or domain:
+        </label>
+        <input
+          type="text"
+          id="target"
+          value={target}
+          onChange={(e) => setTarget(e.target.value)}
+          className="mb-4 w-full rounded border p-2"
+          required
+        />
+        <button
+          type="submit"
+          className="rounded bg-blue-500 px-4 py-2 text-white transition hover:bg-blue-700"
+        >
+          Scan
+        </button>
+      </form>
+
+      {loading && (
+        <p className="font-medium text-yellow-500">Scanning in progress...</p>
+      )}
+
+      {result && (
+        <div className="mt-5">
+          <h2 className="mb-3 text-xl font-semibold">Scan Results</h2>
+          <div className="rounded bg-gray-100 p-4">
+            <h3 className="text-lg font-semibold text-blue-700">
+              Nmap Result:
+            </h3>
+            <div className="mb-4 overflow-x-auto rounded bg-white p-3">
+              {highlightPorts(nmapResult)}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default SiteInfo;
